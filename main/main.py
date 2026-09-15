@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from Database.database import session, engine 
 from Schema import schema
 from Entities import user, role, apikey
+from pwdlib import PasswordHash
 
 application = FastAPI()
 
@@ -30,7 +31,7 @@ def getRole(role: role.Role, id: int,db: Session = Depends(get_db)):
 # create new role
 @application.post("/create/role")
 def createNewRole(role:role.Role,db: Session = Depends(get_db)):
-    db.execute(text("INSER INTO roles VALUES('{role.name}')"))
+    db.execute(text("INSERT INTO roles VALUES('{role.name}')"))
     db.commit()
     return role
 # update existing role
@@ -51,3 +52,15 @@ def deleteRole(id:int,db: Session = Depends(get_db)):
     db.execute(text(f"DELETE FROM roles WHERE id={id}"))
     db.commit()
     return "Role Deleted"
+
+
+# get all users 
+@application.get("/get/all/users")
+def getAllUsers(db: Session = Depends(get_db)):
+    users = db.execute(text(f"SELECT * FROM users")).mappings().all()
+    return users 
+# get specific user 
+@application.get("/get/user/{id}")
+def getUser(id: int, db: Session = Depends(get_db)):
+    user = db.execute(text(f"SELECT * FROM users WHERE id={id}")).mappings().first() 
+    return user 
