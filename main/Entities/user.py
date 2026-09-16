@@ -5,4 +5,4 @@ class User(BaseModel):
     id: int 
     username: str 
     password: str 
-    role_id: int
+    role: str

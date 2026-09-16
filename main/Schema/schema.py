@@ -14,7 +14,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String, nullable=False) 
     password = Column(String, nullable=False) 
-    role_id = Column(Integer, ForeignKey("roles.id"))
+    role = Column(String, ForeignKey("roles.id"))
 
 class Key(Base):
     __tablename__="keys"
