@@ -34,7 +34,9 @@ def getRole(id: int,db: Session = Depends(get_db)):
 @application.post("/create/role")
 def createNewRole(role:role.Role,db: Session = Depends(get_db)):
     query = text("""INSERT INTO roles(name) VALUES(:name)""")
-    db.execute(query,{"name":role.name})
+    role = db.execute(query,{"name":role.name})
+    db.commit()
+    return role
 # update existing role
 @application.put("/update/role/{id}")
 def updateRole(id: int,new_role:role.Role,db:Session = Depends(get_db)):
@@ -43,18 +45,20 @@ def updateRole(id: int,new_role:role.Role,db:Session = Depends(get_db)):
     if exisitng_role == None:
         raise HTTPException(status_code=404, detail="Role doesn't exist")
     update_query = text("""UPDATE roles SET name=:name WHERE id=:id""")
-    db.execute(update_query,{"name":new_role.name})
+    db.execute(update_query,{"name":new_role.name, "id":id})
     db.commit()
     return new_role
 # delete existing role 
 @application.delete("/delete/role/{id}")
 def deleteRole(id:int,db: Session = Depends(get_db)):
-    role = db.execute(text(f"SELECT * FROM roles WHERE id=:id")).first()
-    if role == None:
-        raise HTTPException(status_code=404, detail="Roles doesn't exist")
-    db.execute(text(f"DELETE FROM roles WHERE id=:id"))
+    check_query = text("""SELECT * FROM roles WHERE id=:id""")
+    existing_role = db.execute(check_query, {"id":id}).first()
+    if existing_role == None:
+        raise HTTPException(status_code=404, detail="Role doesn't exist")
+    delete_query = text("""DELETE FROM roles WHERE id=:id""")
+    db.execute(delete_query, {"id":id})
     db.commit()
-    return "Role Deleted"
+    return "Role deleted sucessfully"
 
 
 # get all users 
@@ -66,7 +70,7 @@ def getAllUsers(db: Session = Depends(get_db)):
 @application.get("/get/user/{id}")
 def getUser(id: int, db: Session = Depends(get_db)):
     check_query = text("""SELECT * FROM users WHERE id=:id""")
-    existing_user = db.execute(check_query, {"id":id})
+    existing_user = db.execute(check_query, {"id":id}).mappings().first()
     if existing_user == None:
         raise HTTPException(status_code=404, detail="User doesn't exist")
     return existing_user
@@ -78,8 +82,12 @@ def createUser(user:user.User,db: Session = Depends(get_db)):
     if existing_user is not None:
         return "User already exists"
     hashed_password = password_hash.hash(user.password)
-    insert_query = text("""INSERT INTO users(username,password,role) VALUES(:username,:password,:role)""")
-    db.execute(insert_query, {"username":user.username, "password":hashed_password, "role":"user"})
+    role_query = text("""SELECT id FROM roles WHERE name=:role_name""")
+    default_role = db.execute(role_query, {"role_name":"user"}).first()
+    if default_role == None:
+        raise HTTPException(status_code=404, detail="Role doesn't exist")
+    insert_query = text("""INSERT INTO users(username,password,role) VALUES(:username,:password,(SELECT id FROM roles WHERE name='user'))""")
+    user = db.execute(insert_query, {"username":user.username, "password":hashed_password})
     db.commit()
     return "New user created successfully" 
 # update existing user
@@ -91,7 +99,7 @@ def updateUser(id: int, user:user.User, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User doesn't exist")
     hashed_password = password_hash.hash(user.password)
     update_query = text("""UPDATE users SET username=:username, password=:password WHERE id=:id""")
-    user = db.execute(update_query, {"username":user.username, "password":hashed_password})
+    user = db.execute(update_query, {"username":user.username, "password":hashed_password, "id":id})
     db.commit()
     return user 
 # delete exiting user

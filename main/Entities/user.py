@@ -1,8 +1,6 @@
 from pydantic import BaseModel
-from role import Role
+from Entities.role import Role
 
-class User(BaseModel):
-    id: int 
+class User(BaseModel): 
     username: str 
     password: str 
-    role: str

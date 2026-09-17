@@ -1,5 +1,4 @@
 from pydantic import BaseModel 
 
-class Key(BaseModel):
-    id: int 
+class Key(BaseModel): 
     key: str 
