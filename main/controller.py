@@ -81,15 +81,31 @@ def createUser(user:user.User,db: Session = Depends(get_db)):
     existing_user = db.execute(check_query, {"username":user.username}).first()
     if existing_user is not None:
         return "User already exists"
-    hashed_password = password_hash.hash(user.password)
     role_query = text("""SELECT id FROM roles WHERE name=:role_name""")
     default_role = db.execute(role_query, {"role_name":"user"}).first()
     if default_role == None:
         raise HTTPException(status_code=404, detail="Role doesn't exist")
     insert_query = text("""INSERT INTO users(username,password,role) VALUES(:username,:password,(SELECT id FROM roles WHERE name='user'))""")
+    hashed_password = password_hash.hash(user.password)
     user = db.execute(insert_query, {"username":user.username, "password":hashed_password})
     db.commit()
     return "New user created successfully" 
+# create new admin
+@application.post("/create/admin")
+def createAdmin(user: user.User, db: Session = Depends(get_db)):
+    check_query = text("""SELECT * FROM users WHERE username=:username""")
+    existing_user = db.execute(check_query,{"username":user.username}).first()
+    if existing_user is not None:
+        return "User already exists"
+    role_query = text("""SELECT id FROM roles WHERE name=:role_name""")
+    default_role = db.execute(role_query,{"role_name":"admin"}).first()
+    if default_role == None:
+        raise HTTPException(status_code=404, detail="Role doesn't exist")
+    insert_query = text("""INSERT INTO users(username, password, role) VALUES(:username,:password,(SELECT id FROM roles WHERE name='admin'))""")
+    hashed_password = password_hash.hash(user.password)
+    user = db.execute(insert_query,{"username":user.username, "password":hashed_password})
+    db.commit()
+    return "New admin created"
 # update existing user
 @application.put("/update/user/{id}")
 def updateUser(id: int, user:user.User, db: Session = Depends(get_db)):
