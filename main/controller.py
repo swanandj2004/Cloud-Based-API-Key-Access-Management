@@ -36,7 +36,7 @@ def createNewRole(role:role.Role,db: Session = Depends(get_db)):
     query = text("""INSERT INTO roles(name) VALUES(:name)""")
     role = db.execute(query,{"name":role.name})
     db.commit()
-    return role
+    return {"status":"success", "message":"New role created successfully"}
 # update existing role
 @application.put("/update/role/{id}")
 def updateRole(id: int,new_role:role.Role,db:Session = Depends(get_db)):
@@ -47,7 +47,7 @@ def updateRole(id: int,new_role:role.Role,db:Session = Depends(get_db)):
     update_query = text("""UPDATE roles SET name=:name WHERE id=:id""")
     db.execute(update_query,{"name":new_role.name, "id":id})
     db.commit()
-    return new_role
+    return {"status":"success", "message":"Role updated successfully"}
 # delete existing role 
 @application.delete("/delete/role/{id}")
 def deleteRole(id:int,db: Session = Depends(get_db)):
@@ -58,7 +58,7 @@ def deleteRole(id:int,db: Session = Depends(get_db)):
     delete_query = text("""DELETE FROM roles WHERE id=:id""")
     db.execute(delete_query, {"id":id})
     db.commit()
-    return "Role deleted sucessfully"
+    return {"status":"success","message":"Role deleted successfully"}
 
 
 # get all users 
@@ -89,7 +89,7 @@ def createUser(user:user.User,db: Session = Depends(get_db)):
     hashed_password = password_hash.hash(user.password)
     user = db.execute(insert_query, {"username":user.username, "password":hashed_password})
     db.commit()
-    return "New user created successfully" 
+    return {"status": "success","message": "New user created successfully"} 
 # create new admin
 @application.post("/create/admin")
 def createAdmin(user: user.User, db: Session = Depends(get_db)):
@@ -105,19 +105,31 @@ def createAdmin(user: user.User, db: Session = Depends(get_db)):
     hashed_password = password_hash.hash(user.password)
     user = db.execute(insert_query,{"username":user.username, "password":hashed_password})
     db.commit()
-    return "New admin created"
+    return {"status": "success", "message": "New admin created successfully"}
 # update existing user
 @application.put("/update/user/{id}")
 def updateUser(id: int, user:user.User, db: Session = Depends(get_db)):
-    check_query = text("""SELECT * FROM users WHERE id=:id""")
+    check_query = text("""SELECT * FROM users WHERE id=:id AND role=(SELECT id FROM roles WHERE name='user')""")
     existing_user = db.execute(check_query, {"id":id}).first() 
     if existing_user == None:
         raise HTTPException(status_code=404, detail="User doesn't exist")
     hashed_password = password_hash.hash(user.password)
     update_query = text("""UPDATE users SET username=:username, password=:password WHERE id=:id""")
-    user = db.execute(update_query, {"username":user.username, "password":hashed_password, "id":id})
+    db.execute(update_query, {"username":user.username, "password":hashed_password, "id":id})
     db.commit()
-    return user 
+    return {"status":"success", "message": "User details updated successsfully"}
+# update existing admin
+@application.put("/update/admin/{id}")
+def updateAdmin(id: int,admin: user.User, db: Session = Depends(get_db)):
+    check_query = text("""SELECT * FROM users WHERE id=:id AND role=(SELECT id FROM roles WHERE name='admin')""")
+    existing_admin = db.execute(check_query,{"id":id}).first()
+    if existing_admin == None:
+        raise HTTPException(status_code=404, detail="User doesn't exist")
+    hashed_password = password_hash.hash(admin.password)
+    update_query = text("""UPDATE users SET username=:username, password:password WHERE id=:id""")
+    db.execute(update_query, {"username":admin.username, "password":hashed_password, "id":id})
+    db.commit()
+    return {"status": "success", "message": "Admin details updated successfully"}
 # delete exiting user
 @application.delete("/delete/user/{id}")
 def deleteUser(id: int, db: Session = Depends(get_db)):
@@ -128,4 +140,4 @@ def deleteUser(id: int, db: Session = Depends(get_db)):
     delete_query = text("""DELETE FROM users WHERE id=:id""")
     db.execute(delete_query,{"id":id})
     db.commit()
-    return "User deleted successfully"
+    return {"status": "success", "message": "User deleted successfully"}
