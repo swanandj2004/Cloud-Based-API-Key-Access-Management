@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, func
 from sqlalchemy.orm import declarative_base
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -20,3 +21,4 @@ class Key(Base):
     __tablename__ = "keys"
     id = Column(Integer, primary_key=True, autoincrement=True)
     key = Column(String, nullable=False) 
+    created_at = Column(datetime,nullable=False)

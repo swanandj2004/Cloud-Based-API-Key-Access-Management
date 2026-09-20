@@ -5,6 +5,9 @@ from Database.database import session, engine
 from Schema import schema
 from Entities import user, role, apikey
 from pwdlib import PasswordHash
+import secrets
+import bcrypt
+from datetime import time, datetime
 
 application = FastAPI()
 password_hash = PasswordHash.recommended()
@@ -141,3 +144,32 @@ def deleteUser(id: int, db: Session = Depends(get_db)):
     db.execute(delete_query,{"id":id})
     db.commit()
     return {"status": "success", "message": "User deleted successfully"}
+
+
+# generate api key
+@application.post("/create/key")
+def createApiKey(key: apikey.Key, db: Session = Depends(get_db)):
+    key = secrets.token_hex(32)
+    hashed_key = password_hash.hash(key)
+    insert_query = text("""INSERT INTO keys(key, created_at) VALUES(:api_key, CURRENT_TIMESTAMP)""")
+    db.execute(insert_query, {"api_key":hashed_key})
+    db.commit()
+    return {"status": "success", "message": "API Key created successfully"}
+# get all api keys
+@application.get("/get/all/keys")
+def getAllKeys(db: Session = Depends(get_db)):
+    get_query = text("""SELECT * FROM keys""")
+    keys = db.execute(get_query).mappings().all()
+    return keys
+# get specific key
+@application.get("/get/key/{id}")
+def getKey(id: int, db: Session = Depends(get_db)):
+    get_query = text("""SELECT * FROM keys WHERE id=:id""")
+    key = db.execute(get_query, {"id":id}).mapping().first()
+    return key 
+# delete api key
+@application.delete("/delete/key/{id}")
+def deleteKey(id: int, db: Session = Depends(get_db)):
+    delete_query = text("""DELETE FROM keys WHERE id=:id""")
+    db.execute(delete_query, {"id":id})
+    return {"status": "success", "message": "API Key deleted successfully"}
