@@ -4,10 +4,14 @@ from sqlalchemy.orm import Session
 from Database.database import session, engine 
 from Schema import schema
 from Entities import user, role, apikey
+from Entities.user import User
+from Entities.role import Role
+from Entities.apikey import Key
 from pwdlib import PasswordHash
 import secrets
 import bcrypt
-from datetime import time, datetime
+from datetime import time, timezone, timedelta
+from security.login import LoginRequest
 
 application = FastAPI()
 password_hash = PasswordHash.recommended()
@@ -173,3 +177,19 @@ def deleteKey(id: int, db: Session = Depends(get_db)):
     delete_query = text("""DELETE FROM keys WHERE id=:id""")
     db.execute(delete_query, {"id":id})
     return {"status": "success", "message": "API Key deleted successfully"}
+
+
+# User Login
+@application.post("/user/login")
+def login(login: LoginRequest, db: Session = Depends(get_db)):
+    check_username_query = text("""SELECT username FROM users WHERE username=:username""")
+    existing_username = db.execute(check_username_query,{"username":login.form_username}).scalar()
+    if existing_username == None or existing_username == "":
+        raise HTTPException(status_code=401, detail="Invalid username")
+    check_password_query = text("""SELECT password FROM users WHERE username=:username""")
+    exisiting_password = db.execute(check_password_query, {"username":existing_username}).scalar()
+    is_valid = password_hash.verify(login.form_password, exisiting_password)
+    if is_valid:
+        return {"status": "success", "message": "User login successful"}
+    else:
+        return {"status": "fail", "message": "Invalid username or password"}
