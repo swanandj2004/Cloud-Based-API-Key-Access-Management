@@ -12,6 +12,7 @@ import secrets
 import bcrypt
 from datetime import time, timezone, timedelta
 from security.login import LoginRequest
+from security import token
 
 application = FastAPI()
 password_hash = PasswordHash.recommended()
@@ -190,6 +191,13 @@ def login(login: LoginRequest, db: Session = Depends(get_db)):
     exisiting_password = db.execute(check_password_query, {"username":existing_username}).scalar()
     is_valid = password_hash.verify(login.form_password, exisiting_password)
     if is_valid:
-        return {"status": "success", "message": "User login successful"}
+        id_query = text("""SELECT id FROM users WHERE username=:username""")
+        role_query = text("""SELECT role FROM users WHERE username=:username""")
+        access_token = token.create_access_token(
+            id = str(db.execute(id_query, {"username":existing_username}).scalar()),
+            username = existing_username,
+            role = str(db.execute(role_query, {"username":existing_username}).scalar())
+        )
+        return {"status": "success", "message": "User login successful", "access_token":access_token, "token_type":"bearer"}
     else:
         return {"status": "fail", "message": "Invalid username or password"}
