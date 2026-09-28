@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Date
+from sqlalchemy import Column, Integer, String, ForeignKey, Date, ARRAY
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -20,4 +20,4 @@ class Key(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     key = Column(String, nullable=False) 
     created_at = Column(Date,nullable=False)
-    permitted_users = Column(list[int], nullable=False)
+    permitted_users = Column(ARRAY(Integer), nullable=False, default=list)

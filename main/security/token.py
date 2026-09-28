@@ -53,4 +53,4 @@ def verify_token(
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-required_role = 9
+required_role = 8
