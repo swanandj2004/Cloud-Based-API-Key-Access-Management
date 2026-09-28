@@ -20,3 +20,4 @@ class Key(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     key = Column(String, nullable=False) 
     created_at = Column(Date,nullable=False)
+    permitted_users = Column(list[int], nullable=False)

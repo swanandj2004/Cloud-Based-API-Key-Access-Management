@@ -40,7 +40,7 @@ def verify_token(
         payload = jwt.decode (
             access_token,
             SECRET_KEY,
-            algorithm=[ALGORITHM]
+            algorithms=[ALGORITHM]
         )
         id = payload.get("id")
         username = payload.get("username")

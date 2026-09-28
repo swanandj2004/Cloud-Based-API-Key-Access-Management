@@ -37,7 +37,7 @@ def login(login: LoginRequest, db: Session = Depends(get_db)):
         access_token = token.create_access_token(
             id = str(db.execute(id_query, {"username":existing_username}).scalar()),
             username = existing_username,
-            role = str(db.execute(role_query, {"username":existing_username}).scalar())
+            role = db.execute(role_query, {"username":existing_username}).scalar()
         )
         return {"status": "success", "message": "User login successful", "access_token":access_token, "token_type":"bearer"}
     else:
@@ -49,7 +49,7 @@ def login(login: LoginRequest, db: Session = Depends(get_db)):
 def getAllRoles(db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
     if role_id!=token.required_role:
-        raise HTTPException(status_code=403, detail="You're not permitted to this action")
+        raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     roles = db.execute(text(f"SELECT * FROM roles")).mappings().all()
     return roles 
 # get specific role 
@@ -57,7 +57,7 @@ def getAllRoles(db: Session = Depends(get_db), user: dict = Depends(token.verify
 def getRole(id: int,db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
     if role_id!=token.required_role:
-        raise HTTPException(status_code=403, detail="You're not permitted to this action")
+        raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     check_query = text("""SELECT * FROM roles WHERE id=:id""")
     existing_role = db.execute(check_query, {"id":id}).mappings().first()
     if existing_role == None:
@@ -68,7 +68,7 @@ def getRole(id: int,db: Session = Depends(get_db), user: dict = Depends(token.ve
 def createNewRole(role:role.Role,db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
     if role_id!=token.required_role:
-        raise HTTPException(status_code=403, detail="You're not permitted to this action")
+        raise HTTPException(status_code=403, detail="You're not permitted to this perform action")
     query = text("""INSERT INTO roles(name) VALUES(:name)""")
     role = db.execute(query,{"name":role.name})
     db.commit()
@@ -78,7 +78,7 @@ def createNewRole(role:role.Role,db: Session = Depends(get_db), user: dict = Dep
 def updateRole(id: int,new_role:role.Role,db:Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
     if role_id!=token.required_role:
-        raise HTTPException(status_code=403, detail="You're not permitted to this action")
+        raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     check_query = text("""SELECT * FROM roles WHERE id=:id""") 
     exisitng_role = db.execute(check_query, {"id":id}).first()
     if exisitng_role == None:
@@ -108,7 +108,7 @@ def getUser(id: int, db: Session = Depends(get_db), user: dict = Depends(token.v
         if existing_user == None:
             raise HTTPException(status_code=404, detail="User doesn't exist")
         return existing_user
-    raise HTTPException(status_code=403, detail="You're not permitted to this action")
+    raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
 # create new user 
 @application.post("/create/user")
 def createUser(user:user.User,db: Session = Depends(get_db)):
@@ -127,7 +127,10 @@ def createUser(user:user.User,db: Session = Depends(get_db)):
     return {"status": "success","message": "New user created successfully"} 
 # create new admin
 @application.post("/create/admin")
-def createAdmin(user: user.User, db: Session = Depends(get_db)):
+def createAdmin(user: user.User, db: Session = Depends(get_db), temp_user: dict = Depends(token.verify_token)):
+    role_id = temp_user.get("role")
+    if role_id!=token.required_role:
+        raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     check_query = text("""SELECT * FROM users WHERE username=:username""")
     existing_user = db.execute(check_query,{"username":user.username}).first()
     if existing_user is not None:
@@ -146,7 +149,7 @@ def createAdmin(user: user.User, db: Session = Depends(get_db)):
 def updateUser(id: int, user: user.User, db: Session = Depends(get_db), temp_user: dict = Depends(token.verify_token)):
     user_id = temp_user.get("id")
     if user_id!=id:
-        raise HTTPException(status_code=403, detail="You're not permitted to this action")
+        raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     check_query = text("""SELECT * FROM users WHERE id=:id AND role=(SELECT id FROM roles WHERE name='user')""")
     existing_user = db.execute(check_query, {"id":id}).first() 
     if existing_user == None:
@@ -161,13 +164,13 @@ def updateUser(id: int, user: user.User, db: Session = Depends(get_db), temp_use
 def updateAdmin(id: int,admin: user.User, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     user_id = user.get("id")
     if user_id!=id:
-        raise HTTPException(status_code=403, detail="You're not permitted to this action")
+        raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     check_query = text("""SELECT * FROM users WHERE id=:id AND role=(SELECT id FROM roles WHERE name='admin')""")
     existing_admin = db.execute(check_query,{"id":id}).first()
     if existing_admin == None:
         raise HTTPException(status_code=404, detail="User doesn't exist")
     hashed_password = password_hash.hash(admin.password)
-    update_query = text("""UPDATE users SET username=:username, password:password WHERE id=:id""")
+    update_query = text("""UPDATE users SET username=:username, password=:password WHERE id=:id""")
     db.execute(update_query, {"username":admin.username, "password":hashed_password, "id":id})
     db.commit()
     return {"status": "success", "message": "Admin details updated successfully"}
@@ -185,12 +188,15 @@ def deleteUser(id: int, db: Session = Depends(get_db), user: dict = Depends(toke
         db.execute(delete_query,{"id":id})
         db.commit()
         return {"status": "success", "message": "User deleted successfully"}
-    raise HTTPException(status_code=403, detail="You're not permitted to this action")
+    raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
 
 
 # generate api key
 @application.post("/create/key")
-def createApiKey(key: apikey.Key, db: Session = Depends(get_db)):
+def createApiKey(key: apikey.Key, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
+    role_id = user.get("role")
+    if role_id!=token.required_role:
+        raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     key = secrets.token_hex(32)
     hashed_key = password_hash.hash(key)
     insert_query = text("""INSERT INTO keys(key, created_at) VALUES(:api_key, CURRENT_TIMESTAMP)""")
