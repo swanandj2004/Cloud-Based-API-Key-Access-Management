@@ -35,7 +35,7 @@ def login(login: LoginRequest, db: Session = Depends(get_db)):
         id_query = text("""SELECT id FROM users WHERE username=:username""")
         role_query = text("""SELECT role FROM users WHERE username=:username""")
         access_token = token.create_access_token(
-            id = str(db.execute(id_query, {"username":existing_username}).scalar()),
+            id = db.execute(id_query, {"username":existing_username}).scalar(),
             username = existing_username,
             role = db.execute(role_query, {"username":existing_username}).scalar()
         )
@@ -205,19 +205,28 @@ def createApiKey(key: apikey.Key, db: Session = Depends(get_db), user: dict = De
     return {"status": "success", "message": "API Key created successfully"}
 # get all api keys
 @application.get("/get/all/keys")
-def getAllKeys(db: Session = Depends(get_db)):
+def getAllKeys(db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
+    role_id = user.get("role")
+    if role_id!=token.required_role:
+        raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     get_query = text("""SELECT * FROM keys""")
     keys = db.execute(get_query).mappings().all()
     return keys
 # get specific key
 @application.get("/get/key/{id}")
-def getKey(id: int, db: Session = Depends(get_db)):
+def getKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
+    role_id = user.get("role")
+    if role_id!=token.required_role:
+        raise HTTPException(status_code=403, detail="You' re not permitted to perform this action")
     get_query = text("""SELECT * FROM keys WHERE id=:id""")
     key = db.execute(get_query, {"id":id}).mapping().first()
     return key 
 # delete api key
 @application.delete("/delete/key/{id}")
-def deleteKey(id: int, db: Session = Depends(get_db)):
+def deleteKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
+    role_id = user.get("role")
+    if role_id!=token.required_role:
+        raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     delete_query = text("""DELETE FROM keys WHERE id=:id""")
     db.execute(delete_query, {"id":id})
     return {"status": "success", "message": "API Key deleted successfully"}
