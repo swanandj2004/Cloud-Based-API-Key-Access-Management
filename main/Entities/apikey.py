@@ -1,4 +1,4 @@
 from pydantic import BaseModel 
 
 class Key(BaseModel): 
-    key: str 
+    permitted_users: list[int]

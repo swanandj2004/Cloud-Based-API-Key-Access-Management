@@ -8,9 +8,13 @@ from pwdlib import PasswordHash
 import secrets
 from security.login import LoginRequest
 from security import token
+import cryptography, os
+from cryptography.fernet import Fernet
 
 application = FastAPI()
 password_hash = PasswordHash.recommended()
+ENCRYPTION_KEY = os.environ["ENCRYPTION_KEY"]
+cipher = Fernet(ENCRYPTION_KEY.encode())
 
 schema.Base.metadata.create_all(bind=engine)
 
@@ -128,7 +132,7 @@ def createUser(user:user.User,db: Session = Depends(get_db)):
 # create new admin
 @application.post("/create/admin")
 def createAdmin(user: user.User, db: Session = Depends(get_db), temp_user: dict = Depends(token.verify_token)):
-    role_id = temp_user.get("role")
+    role_id = temp_user.get("id")
     if role_id!=token.required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     check_query = text("""SELECT * FROM users WHERE username=:username""")
@@ -197,10 +201,10 @@ def createApiKey(key: apikey.Key, db: Session = Depends(get_db), user: dict = De
     role_id = user.get("role")
     if role_id!=token.required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
-    key = secrets.token_hex(32)
-    hashed_key = password_hash.hash(key)
-    insert_query = text("""INSERT INTO keys(key, created_at) VALUES(:api_key, CURRENT_TIMESTAMP)""")
-    db.execute(insert_query, {"api_key":hashed_key})
+    api_key = secrets.token_hex(32)
+    encrypted_api_key = cipher.encrypt(api_key.encode()).decode()
+    insert_query = text("""INSERT INTO keys(key, created_at, permitted_users) VALUES(:api_key, CURRENT_TIMESTAMP, :permitted_users)""")
+    db.execute(insert_query, {"api_key":encrypted_api_key, "permitted_users":key.permitted_users})
     db.commit()
     return {"status": "success", "message": "API Key created successfully"}
 # get all api keys
@@ -229,4 +233,19 @@ def deleteKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     delete_query = text("""DELETE FROM keys WHERE id=:id""")
     db.execute(delete_query, {"id":id})
-    return {"status": "success", "message": "API Key deleted successfully"}
+    return {"status": "success", "message": "API Key deleted successfully"} 
+# view api keys -> for user 
+@application.get("/get/user/keys/{id}")
+def getUserPermittedKeys(id: int, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
+    role_id = user.get("role")
+    if role_id == token.required_role:
+        return getAllKeys()
+    user_id = user.get("id")
+    if user_id!=id:
+        raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
+    get_query = text("""SELECT key FROM keys WHERE :id=ANY(permitted_users)""")
+    permitted_keys = db.execute(get_query, {"id":id}).scalars().all()
+    decrypted_keys = []
+    for key in permitted_keys:
+        decrypted_keys.append(cipher.decrypt(key.encode()).decode())
+    return decrypted_keys
