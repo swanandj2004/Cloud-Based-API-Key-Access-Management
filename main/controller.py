@@ -10,9 +10,11 @@ from security.login import LoginRequest
 from security import token
 import cryptography, os
 from cryptography.fernet import Fernet
+from dotenv import load_dotenv
 
 application = FastAPI()
 password_hash = PasswordHash.recommended()
+load_dotenv()
 ENCRYPTION_KEY = os.environ["ENCRYPTION_KEY"]
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
@@ -131,8 +133,8 @@ def createUser(user:user.User,db: Session = Depends(get_db)):
     return {"status": "success","message": "New user created successfully"} 
 # create new admin
 @application.post("/create/admin")
-def createAdmin(user: user.User, db: Session = Depends(get_db), temp_user: dict = Depends(token.verify_token)):
-    role_id = temp_user.get("id")
+def createAdmin(user: user.User, db: Session = Depends(get_db), temp_user : dict = Depends(token.verify_token)):
+    role_id = temp_user.get("role")
     if role_id!=token.required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     check_query = text("""SELECT * FROM users WHERE username=:username""")
@@ -213,18 +215,29 @@ def getAllKeys(db: Session = Depends(get_db), user: dict = Depends(token.verify_
     role_id = user.get("role")
     if role_id!=token.required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
-    get_query = text("""SELECT * FROM keys""")
-    keys = db.execute(get_query).mappings().all()
-    return keys
+    get_query = text("""SELECT id, key, created_at, permitted_users FROM keys""")
+    all_keys = db.execute(get_query).mappings().all()
+    decrypted_keys = []
+    for key in all_keys:
+        plain_key = cipher.decrypt(key["key"].encode()).decode()
+        decrypted_keys.append({
+            "id":key["id"],
+            "key":plain_key,
+            "created_at":key["created_at"],
+            "permitted_users":key["permitted_users"]
+        })
+    return decrypted_keys
 # get specific key
 @application.get("/get/key/{id}")
 def getKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
     if role_id!=token.required_role:
         raise HTTPException(status_code=403, detail="You' re not permitted to perform this action")
-    get_query = text("""SELECT * FROM keys WHERE id=:id""")
-    key = db.execute(get_query, {"id":id}).mapping().first()
-    return key 
+    get_query = text("""SELECT id, key, created_at, permitted_users FROM keys WHERE id=:id""")
+    result_key = db.execute(get_query, {"id":id}).mappings().first()
+    result_key = dict(result_key)
+    result_key["key"] = cipher.decrypt(result_key["key"].encode()).decode()
+    return result_key
 # delete api key
 @application.delete("/delete/key/{id}")
 def deleteKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
