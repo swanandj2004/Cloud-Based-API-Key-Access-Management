@@ -33,8 +33,10 @@ def create_access_token(
 security = HTTPBearer()
 
 def verify_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: HTTPAuthorizationCredentials | None = Depends(security)
 ):  
+    if credentials is None:
+        return None
     access_token = credentials.credentials
     try:
         payload = jwt.decode (

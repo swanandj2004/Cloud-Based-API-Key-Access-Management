@@ -7,7 +7,6 @@ from Entities import user, role, apikey
 from pwdlib import PasswordHash
 import secrets
 from security.login import LoginRequest
-from security import token
 import cryptography, os
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
@@ -17,6 +16,18 @@ password_hash = PasswordHash.recommended()
 load_dotenv()
 ENCRYPTION_KEY = os.environ["ENCRYPTION_KEY"]
 cipher = Fernet(ENCRYPTION_KEY.encode())
+
+from fastapi.middleware.cors import CORSMiddleware
+from security import token
+
+
+application.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 schema.Base.metadata.create_all(bind=engine)
 
@@ -134,6 +145,13 @@ def createUser(user:user.User,db: Session = Depends(get_db)):
 # create new admin
 @application.post("/create/admin")
 def createAdmin(user: user.User, db: Session = Depends(get_db), temp_user : dict = Depends(token.verify_token)):
+    admin_exists = db.execute(text("""SELECT 1 FROM users WHERE role=:role"""),{"role":token.required_role}).first()
+    if not admin_exists:
+        hashed_password = password_hash.has(user.password)
+        insert_query = text("""INSERT INTO users(username, password, role) VALUES(:username, :password, :role)""")
+        db.execute(insert_query, {"username":user.username, "password":hashed_password, "role":token.required_role})
+        db.commit()
+        return {"status": "success", "message": "Initial admin created"}
     role_id = temp_user.get("role")
     if role_id!=token.required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
