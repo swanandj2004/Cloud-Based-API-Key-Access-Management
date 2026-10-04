@@ -97,7 +97,7 @@ def createNewRole(role:role.Role,db: Session = Depends(get_db), user: dict | Non
         return {"status": "success", "message": "New role created successfully"}
     role_id = user.get("role")
     required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'"""))
-    if role_id!=token.required_role:
+    if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to this perform action")
     query = text("""INSERT INTO roles(name) VALUES(:name)""")
     role = db.execute(query,{"name":role.name})
