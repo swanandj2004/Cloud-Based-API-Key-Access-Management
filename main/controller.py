@@ -18,7 +18,7 @@ ENCRYPTION_KEY = os.environ["ENCRYPTION_KEY"]
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
 from fastapi.middleware.cors import CORSMiddleware
-from security import token
+from main.security import token
 
 
 application.add_middleware(
