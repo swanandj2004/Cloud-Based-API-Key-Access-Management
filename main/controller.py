@@ -38,6 +38,10 @@ def get_db():
     finally:
         db.close()
 
+@application.get("/")
+def home():
+    return {"status": "success", "message": "API is running"}
+
 # user login
 @application.post("/user/login")
 def login(login: LoginRequest, db: Session = Depends(get_db)):
