@@ -65,7 +65,8 @@ def login(login: LoginRequest, db: Session = Depends(get_db)):
 @application.get("/get/all/roles")
 def getAllRoles(db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
-    if role_id!=token.required_role:
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'"""))
+    if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     roles = db.execute(text(f"SELECT * FROM roles")).mappings().all()
     return roles 
@@ -73,7 +74,8 @@ def getAllRoles(db: Session = Depends(get_db), user: dict = Depends(token.verify
 @application.get("/get/role/{id}")
 def getRole(id: int,db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
-    if role_id!=token.required_role:
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'"""))
+    if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     check_query = text("""SELECT * FROM roles WHERE id=:id""")
     existing_role = db.execute(check_query, {"id":id}).mappings().first()
@@ -100,7 +102,8 @@ def createNewRole(role:role.Role,db: Session = Depends(get_db), user: dict | Non
 @application.put("/update/role/{id}")
 def updateRole(id: int,new_role:role.Role,db:Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
-    if role_id!=token.required_role:
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'"""))
+    if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     check_query = text("""SELECT * FROM roles WHERE id=:id""") 
     exisitng_role = db.execute(check_query, {"id":id}).first()
@@ -229,7 +232,8 @@ def deleteUser(id: int, db: Session = Depends(get_db), user: dict = Depends(toke
 @application.post("/create/key")
 def createApiKey(key: apikey.Key, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
-    if role_id!=token.required_role:
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'"""))
+    if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     api_key = secrets.token_hex(32)
     encrypted_api_key = cipher.encrypt(api_key.encode()).decode()
@@ -241,7 +245,8 @@ def createApiKey(key: apikey.Key, db: Session = Depends(get_db), user: dict = De
 @application.get("/get/all/keys")
 def getAllKeys(db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
-    if role_id!=token.required_role:
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'"""))
+    if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     get_query = text("""SELECT id, key, created_at, permitted_users FROM keys""")
     all_keys = db.execute(get_query).mappings().all()
@@ -259,7 +264,8 @@ def getAllKeys(db: Session = Depends(get_db), user: dict = Depends(token.verify_
 @application.get("/get/key/{id}")
 def getKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
-    if role_id!=token.required_role:
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'"""))
+    if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You' re not permitted to perform this action")
     get_query = text("""SELECT id, key, created_at, permitted_users FROM keys WHERE id=:id""")
     result_key = db.execute(get_query, {"id":id}).mappings().first()
@@ -270,7 +276,8 @@ def getKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token.ve
 @application.delete("/delete/key/{id}")
 def deleteKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
-    if role_id!=token.required_role:
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'"""))
+    if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     delete_query = text("""DELETE FROM keys WHERE id=:id""")
     db.execute(delete_query, {"id":id})
@@ -279,7 +286,8 @@ def deleteKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token
 @application.get("/get/user/keys/{id}")
 def getUserPermittedKeys(id: int, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
-    if role_id == token.required_role:
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'"""))
+    if role_id == required_role:
         return getAllKeys()
     user_id = user.get("id")
     if user_id!=id:
