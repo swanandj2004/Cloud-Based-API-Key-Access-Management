@@ -250,7 +250,7 @@ def createApiKey(key: apikey.Key, db: Session = Depends(get_db), user: dict = De
 @application.get("/get/all/keys")
 def getAllKeys(db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
-    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'"""))
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'""")).scalar()
     if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     get_query = text("""SELECT id, key, created_at, permitted_users FROM keys""")
@@ -269,7 +269,7 @@ def getAllKeys(db: Session = Depends(get_db), user: dict = Depends(token.verify_
 @application.get("/get/key/{id}")
 def getKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
-    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'"""))
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'""")).scalar()
     if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You' re not permitted to perform this action")
     get_query = text("""SELECT id, key, created_at, permitted_users FROM keys WHERE id=:id""")
@@ -281,7 +281,7 @@ def getKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token.ve
 @application.delete("/delete/key/{id}")
 def deleteKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
-    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'"""))
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'""")).scalar()
     if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     delete_query = text("""DELETE FROM keys WHERE id=:id""")
@@ -291,7 +291,7 @@ def deleteKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token
 @application.get("/get/user/keys/{id}")
 def getUserPermittedKeys(id: int, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
-    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'"""))
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'""")).scalar()
     if role_id == required_role:
         return getAllKeys()
     user_id = user.get("id")
