@@ -144,7 +144,7 @@ def createUser(user:user.User,db: Session = Depends(get_db)):
     return {"status": "success","message": "New user created successfully"} 
 # create new admin
 @application.post("/create/admin")
-def createAdmin(user: user.User, db: Session = Depends(get_db), temp_user : dict = Depends(token.verify_token)):
+def createAdmin(user: user.User, db: Session = Depends(get_db), temp_user : dict | None = Depends(token.verify_token)):
     admin_exists = db.execute(text("""SELECT 1 FROM users WHERE role=:role"""),{"role":token.required_role}).first()
     if not admin_exists:
         hashed_password = password_hash.has(user.password)
