@@ -33,7 +33,7 @@ def create_access_token(
 security = HTTPBearer()
 
 def verify_token(
-    credentials: HTTPAuthorizationCredentials | None = Depends(security)
+    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False))
 ):  
     if credentials is None:
         return None
@@ -54,5 +54,3 @@ def verify_token(
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-required_role = 8

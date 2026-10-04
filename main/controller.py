@@ -82,7 +82,13 @@ def getRole(id: int,db: Session = Depends(get_db), user: dict = Depends(token.ve
     return existing_role
 # create new role
 @application.post("/create/role")
-def createNewRole(role:role.Role,db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
+def createNewRole(role:role.Role,db: Session = Depends(get_db), user: dict | None = Depends(token.verify_token)):
+    role_exists = db.execute(text("""SELECT 1 FROM roles WHERE name=:name"""),{"name":"admin"}).first()
+    if role_exists is None:
+        insert_query = text("""INSERT INTO roles(name) VALUES(:name)""")
+        db.execute(insert_query,{"name":"admin"})
+        db.commit()
+        return {"status": "success", "message": "New role created successfully"}
     role_id = user.get("role")
     if role_id!=token.required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to this perform action")
@@ -110,7 +116,8 @@ def updateRole(id: int,new_role:role.Role,db:Session = Depends(get_db), user: di
 @application.get("/get/all/users")
 def getAllUsers(db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
-    if role_id!=token.required_role:
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'""")).scalar()
+    if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to this action")
     users = db.execute(text(f"SELECT * FROM users")).mappings().all()
     return users 
@@ -119,7 +126,8 @@ def getAllUsers(db: Session = Depends(get_db), user: dict = Depends(token.verify
 def getUser(id: int, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
     user_id = user.get("id")
-    if role_id==token.required_role or user_id==id:
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'""")).scalar()
+    if role_id==required_role or user_id==id:
         check_query = text("""SELECT * FROM users WHERE id=:id""")
         existing_user = db.execute(check_query, {"id":id}).mappings().first()
         if existing_user == None:
@@ -145,15 +153,16 @@ def createUser(user:user.User,db: Session = Depends(get_db)):
 # create new admin
 @application.post("/create/admin")
 def createAdmin(user: user.User, db: Session = Depends(get_db), temp_user : dict | None = Depends(token.verify_token)):
-    admin_exists = db.execute(text("""SELECT 1 FROM users WHERE role=:role"""),{"role":token.required_role}).first()
-    if not admin_exists:
-        hashed_password = password_hash.has(user.password)
+    admin_exists = db.execute(text("""SELECT 1 FROM users WHERE role=(SELECT id FROM roles WHERE name='admin')""")).first()
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'""")).scalar()
+    if admin_exists is None:
+        hashed_password = password_hash.hash(user.password)
         insert_query = text("""INSERT INTO users(username, password, role) VALUES(:username, :password, :role)""")
-        db.execute(insert_query, {"username":user.username, "password":hashed_password, "role":token.required_role})
+        db.execute(insert_query, {"username":user.username, "password":hashed_password, "role":required_role})
         db.commit()
         return {"status": "success", "message": "Initial admin created"}
     role_id = temp_user.get("role")
-    if role_id!=token.required_role:
+    if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     check_query = text("""SELECT * FROM users WHERE username=:username""")
     existing_user = db.execute(check_query,{"username":user.username}).first()
@@ -203,7 +212,8 @@ def updateAdmin(id: int,admin: user.User, db: Session = Depends(get_db), user: d
 def deleteUser(id: int, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
     user_id = user.get("id")
-    if role_id==token.required_role or user_id==id: 
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'""")).scalar()
+    if role_id==required_role or user_id==id: 
         check_query = text("""SELECT * FROM users WHERE id=:id""")
         existing_user = db.execute(check_query,{"id":id}).first()
         if existing_user == None:
