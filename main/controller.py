@@ -237,7 +237,7 @@ def deleteUser(id: int, db: Session = Depends(get_db), user: dict = Depends(toke
 @application.post("/create/key")
 def createApiKey(key: apikey.Key, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     role_id = user.get("role")
-    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'"""))
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'""")).scalar()
     if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     api_key = secrets.token_hex(32)
