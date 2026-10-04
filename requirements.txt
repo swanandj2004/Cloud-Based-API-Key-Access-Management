@@ -6,3 +6,4 @@ pwdlib
 cryptography
 python-dotenv
 python-jose
+psycopg[binary]
