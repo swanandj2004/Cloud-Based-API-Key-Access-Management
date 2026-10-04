@@ -277,6 +277,21 @@ def getKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token.ve
     result_key = dict(result_key)
     result_key["key"] = cipher.decrypt(result_key["key"].encode()).decode()
     return result_key
+# update api key
+@application.put("/update/key/{id}")
+def updateKey(id: int,key: apikey.Key,db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
+    role_id = user.get("role")
+    required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'""")).scalar()
+    if role_id!=required_role:
+        raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
+    check_query = text("""SELECT * FROM keys WHERE id=:id""")
+    existing_key = db.execute(check_query, {"id":id}).first()
+    if existing_key is None:
+        raise HTTPException(status_code=404, detail="key doesn't exist")
+    update_query = text("""UPDATE keys SET permitted_users=:permitted_users WHERE id=:id""")
+    db.execute(update_query, {"id":id, "permitted_users":key.permitted_users})
+    db.commit()
+    return {"status": "success", "message": "API Key updated successfully"}
 # delete api key
 @application.delete("/delete/key/{id}")
 def deleteKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
