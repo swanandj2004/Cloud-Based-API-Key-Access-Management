@@ -1,12 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy import text 
 from sqlalchemy.orm import Session 
-from Database.database import session, engine 
-from Schema import schema
-from Entities import user, role, apikey
+from main.Database.database import session, engine 
+from main.Schema import schema
+from main.Entities import user, role, apikey
 from pwdlib import PasswordHash
 import secrets
-from security.login import LoginRequest
+from main.security.login import LoginRequest
 import cryptography, os
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
