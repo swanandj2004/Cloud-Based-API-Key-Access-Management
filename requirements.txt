@@ -7,3 +7,4 @@ cryptography
 python-dotenv
 python-jose
 psycopg[binary]
+pwdlib[argon2]
