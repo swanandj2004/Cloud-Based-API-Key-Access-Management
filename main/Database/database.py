@@ -1,8 +1,8 @@
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
+import os
 
-db = "postgresql+psycopg2://postgres:521452A3s@localhost:5432/projectdb"
-
+db = os.environ["DATABASE_URL"]
 engine = create_engine(db)
 
 session = sessionmaker(autoflush=False,bind=engine)
