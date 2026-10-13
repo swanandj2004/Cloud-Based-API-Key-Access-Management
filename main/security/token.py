@@ -54,3 +54,47 @@ def verify_token(
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
+def create_reset_password_token(
+        id: int,
+        username: str
+):
+
+    expire = expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    payload = {
+        "id":id,
+        "username":username,
+        "exp":expire,
+        "purpose":"password-reset"
+    }
+
+    encoded_jwt = jwt.encode(
+        payload,
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+    return encoded_jwt
+
+def verify_reset_token(
+        credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False))      
+):
+    if credentials is None:
+        return None 
+    access_token = credentials.credentials
+    try:
+        payload = jwt.decode(
+            access_token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+        if payload.get("purpose")!="password-reset":
+            return None
+        id = payload.get("id")
+        username= payload.get("username")
+        if id == None or username == None:
+            raise HTTPException(status_code=401, detail="Invalid Token")
+        return {"id":id, "username":username}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")

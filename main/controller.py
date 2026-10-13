@@ -10,12 +10,16 @@ from main.security.login import LoginRequest
 import cryptography, os
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
+from email.message import EmailMessage
+import smtplib
+from datetime import time, timedelta, timezone
 
 application = FastAPI()
 password_hash = PasswordHash.recommended()
 load_dotenv()
 ENCRYPTION_KEY = os.environ["ENCRYPTION_KEY"]
 cipher = Fernet(ENCRYPTION_KEY.encode())
+message = EmailMessage() 
 
 from fastapi.middleware.cors import CORSMiddleware
 from main.security import token
@@ -44,7 +48,7 @@ def home():
 
 # user login
 @application.post("/user/login")
-def login(login: LoginRequest, db: Session = Depends(get_db)):
+def login(user: user.User,login: LoginRequest, db: Session = Depends(get_db)):
     check_username_query = text("""SELECT username FROM users WHERE username=:username""")
     existing_username = db.execute(check_username_query,{"username":login.form_username}).scalar()
     if existing_username == None or existing_username == "":
@@ -60,10 +64,63 @@ def login(login: LoginRequest, db: Session = Depends(get_db)):
             username = existing_username,
             role = db.execute(role_query, {"username":existing_username}).scalar()
         )
+        email_id = db.execute(text("""SELECT email FROM users WHERE username=:username"""),{"username":existing_username}).scalar()
+        if email_id == None or email_id == "":
+            return {"status": "success", "message": "User login successful", "access_token":access_token, "token_type":"bearer", "alert":"You need to update your profile by setting an email address"}
         return {"status": "success", "message": "User login successful", "access_token":access_token, "token_type":"bearer"}
     else:
         return {"status": "fail", "message": "Invalid username or password"}
 
+
+#forgot password -> user gets an email to reset the password
+@application.post("/forgot/password")
+def forgotPassword(temp_user: user.User, db: Session = Depends(get_db)):
+    check_username_query = text("""SELECT username FROM users WHERE username=:username""")
+    existing_username = db.execute(check_username_query, {"username":temp_user.username}).scalar()
+    if existing_username == None or existing_username == "":
+        raise HTTPException(status_code=404, detail="User doesn't exist")
+    check_email_query = text("""SELECT email FROM users WHERE username=:username""")
+    email = db.execute(check_email_query, {"username":existing_username}).scalar()
+    reset_token = token.create_reset_password_token(db.execute(text("""SELECT id FROM users WHERE username=:username"""),{"username":existing_username}).scalar(),temp_user.username)
+    reset_link = (
+        f"https://localhost:5173/reset/password"
+        f"?token={reset_token}"
+    )
+    message["Subject"] = "Password Reset Request"
+    message["From"] = os.environ["SMTP_USERNAME"]
+    message["To"] = email
+    message.set_content("We ")
+    try:
+        with smtplib.SMTP(
+            os.environ["SMTP_HOST"],
+            int(os.environ.get("SMTP_PORT", "587"))
+        ) as server:
+            server.starttls()
+            server.login(
+                os.environ["SMTP_USERNAME"],
+                os.environ["SMTP_PASSWORD"]
+            )
+            server.send_message(message)
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to send password reset email"
+        )
+    return {"message":"If account exists, password reset instructions will be sent"}
+    
+
+@application.post("/reset/password")
+def resetPassword(user: user.User, temp_user: dict = Depends(token.verify_reset_token),db: Session = Depends(get_db)):
+    user_id = temp_user.get("id")
+    username = temp_user.get("username")
+    if user_id == None or username == None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    new_password = user.password
+    hashed_new_password = password_hash.hash(new_password)
+    password_reset_query = text("""UPDATE users SET password=:password WHERE id=:id""")
+    db.execute(password_reset_query,{"id":user_id, "password":hashed_new_password})
+    db.commit()
+    return {"status": "success", "message": "Password reset successful"}
 
 # get all roles 
 @application.get("/get/all/roles")
@@ -187,7 +244,7 @@ def createAdmin(user: user.User, db: Session = Depends(get_db), temp_user : dict
     return {"status": "success", "message": "New admin created successfully"}
 # update existing user
 @application.put("/update/user/{id}")
-def updateUser(id: int, user: user.User, db: Session = Depends(get_db), temp_user: dict = Depends(token.verify_token)):
+def updateUser(id: int, user: schema.User, db: Session = Depends(get_db), temp_user: dict = Depends(token.verify_token)):
     user_id = temp_user.get("id")
     if user_id!=id:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
@@ -196,13 +253,13 @@ def updateUser(id: int, user: user.User, db: Session = Depends(get_db), temp_use
     if existing_user == None:
         raise HTTPException(status_code=404, detail="User doesn't exist")
     hashed_password = password_hash.hash(user.password)
-    update_query = text("""UPDATE users SET username=:username, password=:password WHERE id=:id""")
-    db.execute(update_query, {"username":user.username, "password":hashed_password, "id":id})
+    update_query = text("""UPDATE users SET username=:username, password=:password, email=:email WHERE id=:id""")
+    db.execute(update_query, {"username":user.username, "password":hashed_password, "id":id, "email":user.email})
     db.commit()
     return {"status":"success", "message": "User details updated successsfully"}
 # update existing admin
 @application.put("/update/admin/{id}")
-def updateAdmin(id: int,admin: user.User, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
+def updateAdmin(id: int,admin: schema.User, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     user_id = user.get("id")
     if user_id!=id:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
@@ -211,8 +268,8 @@ def updateAdmin(id: int,admin: user.User, db: Session = Depends(get_db), user: d
     if existing_admin == None:
         raise HTTPException(status_code=404, detail="User doesn't exist")
     hashed_password = password_hash.hash(admin.password)
-    update_query = text("""UPDATE users SET username=:username, password=:password WHERE id=:id""")
-    db.execute(update_query, {"username":admin.username, "password":hashed_password, "id":id})
+    update_query = text("""UPDATE users SET username=:username, password=:password, email=:email WHERE id=:id""")
+    db.execute(update_query, {"username":admin.username, "password":hashed_password, "id":id, "email":admin.email})
     db.commit()
     return {"status": "success", "message": "Admin details updated successfully"}
 # delete exiting user
