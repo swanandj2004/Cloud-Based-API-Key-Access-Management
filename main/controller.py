@@ -89,7 +89,7 @@ def forgotPassword(temp_user: user.User, db: Session = Depends(get_db)):
     message["Subject"] = "Password Reset Request"
     message["From"] = os.environ["SMTP_USERNAME"]
     message["To"] = email
-    message.set_content("We ")
+    message.set_content("We received a password reset request. Click this link to reset your password ", reset_link)
     try:
         with smtplib.SMTP(
             os.environ["SMTP_HOST"],
