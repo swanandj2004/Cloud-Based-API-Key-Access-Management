@@ -10,8 +10,6 @@ from main.security.login import LoginRequest
 import cryptography, os
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
-from email.message import EmailMessage
-import smtplib
 from datetime import time, timedelta, timezone
 
 application = FastAPI()
@@ -19,21 +17,8 @@ password_hash = PasswordHash.recommended()
 load_dotenv()
 ENCRYPTION_KEY = os.environ["ENCRYPTION_KEY"]
 cipher = Fernet(ENCRYPTION_KEY.encode())
-message = EmailMessage() 
 
-from fastapi.middleware.cors import CORSMiddleware
 from main.security import token
-
-
-application.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-schema.Base.metadata.create_all(bind=engine)
 
 def get_db():
     db = session()
@@ -225,7 +210,7 @@ def createAdmin(user: user.User, db: Session = Depends(get_db), temp_user : dict
     return {"status": "success", "message": "New admin created successfully"}
 # update existing user
 @application.put("/update/user/{id}")
-def updateUser(id: int, user: schema.User, db: Session = Depends(get_db), temp_user: dict = Depends(token.verify_token)):
+def updateUser(id: int, user: user.User, db: Session = Depends(get_db), temp_user: dict = Depends(token.verify_token)):
     user_id = temp_user.get("id")
     if user_id!=id:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
@@ -234,13 +219,13 @@ def updateUser(id: int, user: schema.User, db: Session = Depends(get_db), temp_u
     if existing_user == None:
         raise HTTPException(status_code=404, detail="User doesn't exist")
     hashed_password = password_hash.hash(user.password)
-    update_query = text("""UPDATE users SET username=:username, password=:password, email=:email WHERE id=:id""")
-    db.execute(update_query, {"username":user.username, "password":hashed_password, "id":id, "email":user.email})
+    update_query = text("""UPDATE users SET username=:username, password=:password WHERE id=:id""")
+    db.execute(update_query, {"username":user.username, "password":hashed_password, "id":id})
     db.commit()
     return {"status":"success", "message": "User details updated successsfully"}
 # update existing admin
 @application.put("/update/admin/{id}")
-def updateAdmin(id: int,admin: schema.User, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
+def updateAdmin(id: int,admin: user.User, db: Session = Depends(get_db), user: dict = Depends(token.verify_token)):
     user_id = user.get("id")
     if user_id!=id:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
@@ -249,8 +234,8 @@ def updateAdmin(id: int,admin: schema.User, db: Session = Depends(get_db), user:
     if existing_admin == None:
         raise HTTPException(status_code=404, detail="User doesn't exist")
     hashed_password = password_hash.hash(admin.password)
-    update_query = text("""UPDATE users SET username=:username, password=:password, email=:email WHERE id=:id""")
-    db.execute(update_query, {"username":admin.username, "password":hashed_password, "id":id, "email":admin.email})
+    update_query = text("""UPDATE users SET username=:username, password=:password WHERE id=:id""")
+    db.execute(update_query, {"username":admin.username, "password":hashed_password, "id":id})
     db.commit()
     return {"status": "success", "message": "Admin details updated successfully"}
 # delete exiting user
