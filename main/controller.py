@@ -10,8 +10,6 @@ from main.security.login import LoginRequest
 import cryptography, os
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
-from email.message import EmailMessage
-import smtplib
 from datetime import time, timedelta, timezone
 
 application = FastAPI()
@@ -19,21 +17,8 @@ password_hash = PasswordHash.recommended()
 load_dotenv()
 ENCRYPTION_KEY = os.environ["ENCRYPTION_KEY"]
 cipher = Fernet(ENCRYPTION_KEY.encode())
-message = EmailMessage() 
 
-from fastapi.middleware.cors import CORSMiddleware
 from main.security import token
-
-
-application.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-schema.Base.metadata.create_all(bind=engine)
 
 def get_db():
     db = session()
