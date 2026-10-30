@@ -64,63 +64,44 @@ def login(user: user.User,login: LoginRequest, db: Session = Depends(get_db)):
             username = existing_username,
             role = db.execute(role_query, {"username":existing_username}).scalar()
         )
-        email_id = db.execute(text("""SELECT email FROM users WHERE username=:username"""),{"username":existing_username}).scalar()
-        if email_id == None or email_id == "":
-            return {"status": "success", "message": "User login successful", "access_token":access_token, "token_type":"bearer", "alert":"You need to update your profile by setting an email address"}
         return {"status": "success", "message": "User login successful", "access_token":access_token, "token_type":"bearer"}
     else:
         return {"status": "fail", "message": "Invalid username or password"}
 
 
-#forgot password -> user gets an email to reset the password
+# forgot password 
 @application.post("/forgot/password")
-def forgotPassword(temp_user: user.User, db: Session = Depends(get_db)):
-    check_username_query = text("""SELECT username FROM users WHERE username=:username""")
-    existing_username = db.execute(check_username_query, {"username":temp_user.username}).scalar()
+def forgotPassword(login: LoginRequest, db: Session = Depends(get_db)):
+    username_query = text("""SELECT username FROM users WHERE username=:username""")
+    existing_username = db.execute(username_query, {"username":login.form_username}).scalar()
     if existing_username == None or existing_username == "":
-        raise HTTPException(status_code=404, detail="User doesn't exist")
-    check_email_query = text("""SELECT email FROM users WHERE username=:username""")
-    email = db.execute(check_email_query, {"username":existing_username}).scalar()
-    reset_token = token.create_reset_password_token(db.execute(text("""SELECT id FROM users WHERE username=:username"""),{"username":existing_username}).scalar(),temp_user.username)
-    reset_link = (
-        f"https://localhost:5173/reset/password"
-        f"?token={reset_token}"
+        raise HTTPException(status_code=401, detail="Invalid username")
+    id_query = text("""SELECT id FROM users WHERE username=:username""")
+    role_query = text("""SELECT role FROM users WHERE username=:username""")
+    access_token = token.create_access_token(
+        id = db.execute(id_query, {"username": existing_username}).scalar(),
+        username = existing_username,
+        role = db.execute(role_query, {"username": existing_username}).scalar()
     )
-    message["Subject"] = "Password Reset Request"
-    message["From"] = os.environ["SMTP_USERNAME"]
-    message["To"] = email
-    message.set_content("We received a password reset request. Click this link to reset your password ", reset_link)
-    try:
-        with smtplib.SMTP(
-            os.environ["SMTP_HOST"],
-            int(os.environ.get("SMTP_PORT", "587"))
-        ) as server:
-            server.starttls()
-            server.login(
-                os.environ["SMTP_USERNAME"],
-                os.environ["SMTP_PASSWORD"]
-            )
-            server.send_message(message)
-    except Exception:
-        raise HTTPException(
-            status_code=500,
-            detail="Unable to send password reset email"
-        )
-    return {"message":"If account exists, password reset instructions will be sent"}
-    
+    return {"Follow the given link and re-enter your username to reset your password:", access_token}
 
+# new password
 @application.post("/reset/password")
-def resetPassword(user: user.User, temp_user: dict = Depends(token.verify_reset_token),db: Session = Depends(get_db)):
-    user_id = temp_user.get("id")
-    username = temp_user.get("username")
-    if user_id == None or username == None:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    new_password = user.password
-    hashed_new_password = password_hash.hash(new_password)
-    password_reset_query = text("""UPDATE users SET password=:password WHERE id=:id""")
-    db.execute(password_reset_query,{"id":user_id, "password":hashed_new_password})
+def resetPassword(existing_user: user.User, login: LoginRequest, user: dict = token.verify_token, db: Session = Depends(get_db)):
+    existing_username = db.execute(text("""SELECT username FROM users WHERE username=:username"""),{"username":login.form_username}).scalar()
+    if existing_username == None or existing_username == "":
+        raise HTTPException(status_code=401, detail="Invalid username, try again")
+    id_query = text("""SELECT id FROM users WHERE username=:username""")
+    existing_id = db.execute(id_query, {"username": existing_username}).scalar()
+    id = user.get("id")
+    username = user.get("username")
+    if existing_id!=id or existing_username!=username:
+        raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
+    new_password = password_hash.hash(existing_user.password)
+    update_password_query = text("""UPDATE users SET password=:password WHERE username=:username""")
+    db.execute(update_password_query, {"username": existing_username, "password": new_password})
     db.commit()
-    return {"status": "success", "message": "Password reset successful"}
+    return {"status": "success", "message":"Password reset was successful"}
 
 # get all roles 
 @application.get("/get/all/roles")
