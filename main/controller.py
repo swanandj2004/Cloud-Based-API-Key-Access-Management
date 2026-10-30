@@ -33,7 +33,7 @@ def home():
 
 # user login
 @application.post("/user/login")
-def login(user: user.User,login: LoginRequest, db: Session = Depends(get_db)):
+def login(login: LoginRequest, db: Session = Depends(get_db)):
     check_username_query = text("""SELECT username FROM users WHERE username=:username""")
     existing_username = db.execute(check_username_query,{"username":login.form_username}).scalar()
     if existing_username == None or existing_username == "":
