@@ -68,7 +68,8 @@ def forgotPassword(login: LoginRequest, db: Session = Depends(get_db)):
         username = existing_username,
         role = db.execute(role_query, {"username": existing_username}).scalar()
     )
-    return {"Follow the given link and re-enter your username to reset your password:", access_token}
+    link = "https://cloud-based-api-key-access-management.onrender.com/reset/password"
+    return {"Follow the given link and re-enter your username to reset your password:", link, access_token}
 
 # new password
 @application.post("/reset/password")
