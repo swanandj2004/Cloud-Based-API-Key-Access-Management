@@ -11,6 +11,7 @@ import cryptography, os
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 from datetime import time, timedelta, timezone
+from main.security.forgotPassword import forgotPasswordRequest
 
 application = FastAPI()
 password_hash = PasswordHash.recommended()
