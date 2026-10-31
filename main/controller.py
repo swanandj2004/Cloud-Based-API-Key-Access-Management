@@ -74,7 +74,7 @@ def forgotPassword(user: forgotPasswordRequest, db: Session = Depends(get_db)):
 
 # new password
 @application.post("/reset/password")
-def resetPassword(existing_user: user.User, temp_user: forgotPasswordRequest, user: dict = token.verify_token, db: Session = Depends(get_db)):
+def resetPassword(existing_user: resetPasswordRequest, temp_user: forgotPasswordRequest, user: dict = token.verify_token, db: Session = Depends(get_db)):
     username_query = text("""SELECT username FROM users WHERE username=:username""")
     existing_username = db.execute(username_query, {"username": temp_user.username}).scalar()
     if existing_username == None or existing_username == "":
