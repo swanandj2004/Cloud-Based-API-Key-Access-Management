@@ -1,4 +1,4 @@
 from pydantic import BaseModel
 
-class forgotPassword(BaseModel):
+class forgotPasswordRequest(BaseModel):
     username: str

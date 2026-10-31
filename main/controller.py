@@ -56,7 +56,7 @@ def login(login: LoginRequest, db: Session = Depends(get_db)):
 
 # forgot password 
 @application.post("/forgot/password")
-def forgotPassword(user: forgotPassword, db: Session = Depends(get_db)):
+def forgotPassword(user: forgotPasswordRequest, db: Session = Depends(get_db)):
     username_query = text("""SELECT username FROM users WHERE username=:username""")
     existing_username = db.execute(username_query, {"username":user.username}).scalar()
     if existing_username == None or existing_username == "":
@@ -69,13 +69,13 @@ def forgotPassword(user: forgotPassword, db: Session = Depends(get_db)):
         role = db.execute(role_query, {"username": existing_username}).scalar()
     )
     link = "https://cloud-based-api-key-access-management.onrender.com/reset/password"
-    return {"Follow the given link and re-enter your username to reset your password:", link, access_token}
+    return {"Follow the given link and re-enter your username to reset your password:", "link": link, "access_token": access_token}
 
 # new password
 @application.post("/reset/password")
-def resetPassword(existing_user: user.User, temp_user: forgotPassword, user: dict = token.verify_token, db: Session = Depends(get_db)):
+def resetPassword(existing_user: user.User, temp_user: forgotPasswordRequest, user: dict = token.verify_token, db: Session = Depends(get_db)):
     username_query = text("""SELECT username FROM users WHERE username=:username""")
-    existing_username = db.execute(username_query, {"username": temp_user.forgotPassword}).scalar()
+    existing_username = db.execute(username_query, {"username": temp_user.username}).scalar()
     if existing_username == None or existing_username == "":
         raise HTTPException(status_code=401, detail="Inavlid username")
     id = user.get("id")
