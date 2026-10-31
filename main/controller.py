@@ -56,9 +56,9 @@ def login(login: LoginRequest, db: Session = Depends(get_db)):
 
 # forgot password 
 @application.post("/forgot/password")
-def forgotPassword(login: LoginRequest, db: Session = Depends(get_db)):
+def forgotPassword(user: forgotPassword, db: Session = Depends(get_db)):
     username_query = text("""SELECT username FROM users WHERE username=:username""")
-    existing_username = db.execute(username_query, {"username":login.form_username}).scalar()
+    existing_username = db.execute(username_query, {"username":user.username}).scalar()
     if existing_username == None or existing_username == "":
         raise HTTPException(status_code=401, detail="Invalid username")
     id_query = text("""SELECT id FROM users WHERE username=:username""")
@@ -73,21 +73,22 @@ def forgotPassword(login: LoginRequest, db: Session = Depends(get_db)):
 
 # new password
 @application.post("/reset/password")
-def resetPassword(existing_user: user.User, login: LoginRequest, user: dict = token.verify_token, db: Session = Depends(get_db)):
-    existing_username = db.execute(text("""SELECT username FROM users WHERE username=:username"""),{"username":login.form_username}).scalar()
+def resetPassword(existing_user: user.User, temp_user: forgotPassword, user: dict = token.verify_token, db: Session = Depends(get_db)):
+    username_query = text("""SELECT username FROM users WHERE username=:username""")
+    existing_username = db.execute(username_query, {"username": temp_user.forgotPassword}).scalar()
     if existing_username == None or existing_username == "":
-        raise HTTPException(status_code=401, detail="Invalid username, try again")
-    id_query = text("""SELECT id FROM users WHERE username=:username""")
-    existing_id = db.execute(id_query, {"username": existing_username}).scalar()
+        raise HTTPException(status_code=401, detail="Inavlid username")
     id = user.get("id")
     username = user.get("username")
-    if existing_id!=id or existing_username!=username:
-        raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
+    id_query = text("""SELECT id FROM users WHERE username=:username""")
+    existing_id = db.execute(id_query,{"username":existing_username}).scalar()
+    if username!=existing_username or id!=existing_id:
+        raise HTTPException(status_code=403, detail="You're not permitted to perform ths action")
     new_password = password_hash.hash(existing_user.password)
-    update_password_query = text("""UPDATE users SET password=:password WHERE username=:username""")
-    db.execute(update_password_query, {"username": existing_username, "password": new_password})
+    reset_query = text("""UPDATE users SET password=:password WHERE username=:username""")
+    db.execute(reset_query, {"password":new_password, "username":existing_username})
     db.commit()
-    return {"status": "success", "message":"Password reset was successful"}
+    return {"status":"success", "message":"Your password reset was successful"}
 
 # get all roles 
 @application.get("/get/all/roles")
