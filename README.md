@@ -6,9 +6,10 @@ This implementation covers the following :
   - Creating and managing roles
   - User sign up and user login
   - Updating user details
+  - Resetting password securely, if user forgets it
   - Generating API keys
   - Controlling user access to API keys via user id
   - Storing user's password in hashed format for ensuring security
   - Storing API keys in an encrypted format, while they get decrypted when an authorized user tries to access them
   - json web token (jwt) is used for authentication and authorization of the API endpoints
-  - jwt also provides role based access control
+  - jwt also provides role based access control and password reset
