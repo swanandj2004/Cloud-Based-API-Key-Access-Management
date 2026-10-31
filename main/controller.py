@@ -12,6 +12,7 @@ from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 from datetime import time, timedelta, timezone
 from main.security.forgotPassword import forgotPasswordRequest
+from main.security.resetPassword import resetPasswordRequest
 
 application = FastAPI()
 password_hash = PasswordHash.recommended()
@@ -74,9 +75,9 @@ def forgotPassword(user: forgotPasswordRequest, db: Session = Depends(get_db)):
 
 # new password
 @application.post("/reset/password")
-def resetPassword(existing_user: resetPasswordRequest, temp_user: forgotPasswordRequest, user: dict = token.verify_token, db: Session = Depends(get_db)):
+def resetPassword(existing_user: resetPasswordRequest, user: dict = token.verify_token, db: Session = Depends(get_db)):
     username_query = text("""SELECT username FROM users WHERE username=:username""")
-    existing_username = db.execute(username_query, {"username": temp_user.username}).scalar()
+    existing_username = db.execute(username_query, {"username": existing_user.username}).scalar()
     if existing_username == None or existing_username == "":
         raise HTTPException(status_code=401, detail="Inavlid username")
     id = user.get("id")
