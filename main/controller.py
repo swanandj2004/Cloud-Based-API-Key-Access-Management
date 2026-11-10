@@ -328,6 +328,7 @@ def deleteKey(id: int, db: Session = Depends(get_db), user: dict = Depends(token
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
     delete_query = text("""DELETE FROM keys WHERE id=:id""")
     db.execute(delete_query, {"id":id})
+    db.commit()
     return {"status": "success", "message": "API Key deleted successfully"} 
 # view api keys -> for user 
 @application.get("/get/user/keys/{id}")
@@ -335,7 +336,7 @@ def getUserPermittedKeys(id: int, db: Session = Depends(get_db), user: dict = De
     role_id = user.get("role")
     required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'""")).scalar()
     if role_id == required_role:
-        return getAllKeys()
+        return {"You're an admin, you can access the admin api access page"}
     user_id = user.get("id")
     if user_id!=id:
         raise HTTPException(status_code=403, detail="You're not permitted to perform this action")
