@@ -8,3 +8,5 @@ python-dotenv
 python-jose
 psycopg[binary]
 pwdlib[argon2]
+streamlit
+streamlit requests
