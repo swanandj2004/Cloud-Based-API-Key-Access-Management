@@ -154,7 +154,7 @@ def getAllUsers(db: Session = Depends(get_db), user: dict = Depends(token.verify
     required_role = db.execute(text("""SELECT id FROM roles WHERE name='admin'""")).scalar()
     if role_id!=required_role:
         raise HTTPException(status_code=403, detail="You're not permitted to this action")
-    users = db.execute(text(f"SELECT * FROM users")).mappings().all()
+    users = db.execute(text(f"SELECT id, username, role FROM users")).mappings().all()
     return users 
 # get specific user 
 @application.get("/get/user/{id}")
